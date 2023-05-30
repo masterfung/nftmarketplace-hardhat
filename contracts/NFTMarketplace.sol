@@ -41,10 +41,7 @@ contract NFTMarketplace {
     _; // where logic is insterted after above checks
   }
 
-  modifier isListed(
-    address nftAddress,
-    uint256 tokenId
-  ) {
+  modifier isListed(address nftAddress, uint256 tokenId) {
     Listing memory listing = s_listings[nftAddress][tokenId];
     if (listing.price <= 0) {
       revert NFTMarketplace__NotListed(nftAddress, tokenId);
@@ -80,6 +77,12 @@ contract NFTMarketplace {
     uint256 price
   );
 
+  event ItemCancelled(
+    address indexed seller,
+    address indexed nftAddress,
+    uint256 indexed tokenId
+  );
+
   function listItem(
     address nftAddress,
     uint256 tokenId,
@@ -102,33 +105,51 @@ contract NFTMarketplace {
 
     emit ItemListing(msg.sender, nftAddress, tokenId, price);
   }
-}
 
-function buyItem(
-  address nftAddress,
-  uint256 tokenId
-) external payable isListed(nftAddress, tokenId) {
-  Listing memory listedItem = s_listings[nftAddress][tokenId];
-  if (msg.value < listedItem.price) {
-    revert NFTMarketplace__PriceIsBelowPrice(
-      nftAddress,
-      tokenId,
-      listedItem.price
+  function buyItem(
+    address nftAddress,
+    uint256 tokenId
+  ) external payable isListed(nftAddress, tokenId) {
+    Listing memory listedItem = s_listings[nftAddress][tokenId];
+    if (msg.value < listedItem.price) {
+      revert NFTMarketplace__PriceIsBelowPrice(
+        nftAddress,
+        tokenId,
+        listedItem.price
+      );
+    }
+
+    // Sending the money to the user is not the general practice, ETH prefers pull rather than push
+    // Have the user withdraw the money
+    s_proceeds[listedItem.seller] = s_proceeds[listedItem.seller] + msg.value;
+    delete (s_listings[nftAddress][tokenId]);
+    IERC721(nftAddress).safeTransferFrom(
+      listedItem.seller,
+      msg.sender,
+      tokenId
     );
+
+    // check to make sure the NFT was transferred (with safeTransferFrom)
+    emit NFTSold(msg.sender, nftAddress, tokenId, listedItem.price);
   }
 
-  // Sending the money to the user is not the general practice, ETH prefers pull rather than push
-  // Have the user withdraw the money
-  s_proceeds[listedItem.seller] = s_proceeds[listedItem.seller] + msg.value;
-  delete (s_listings[nftAddress][tokenId]);
-  IERC721(nftAddress).safeTransferFrom(listedItem.seller, msg.sender, tokenId);
+  function cancelItem(
+    address nftAddress,
+    uint256 tokenId
+  )
+    external
+    onlyOwner(nftAddress, tokenId, msg.sender)
+    isListed(nftAddress, tokenId)
+  {
+    delete (s_listings[nftAddress][tokenId]);
 
-  // check to make sure the NFT was transferred (with safeTransferFrom)
-  emit NFTSold(msg.sender, nftAddress, tokenId, listedItem.price);
+    emit ItemCancelled(msg.sender, nftAddress, tokenId);
+  }
+
+  function updateListing() public onlyOwner(nftAddress, tokenId, msg.sender) {}
+
+  function withdrawEarnings()
+    public
+    onlyOwner(nftAddress, tokenId, msg.sender)
+  {}
 }
-
-function cancelItem() public onlyOwner(nftAddress, tokenId, msg.sender) {}
-
-function updateListing() public onlyOwner(nftAddress, tokenId, msg.sender) {}
-
-function withdrawEarnings() public onlyOwner(nftAddress, tokenId, msg.sender) {}
