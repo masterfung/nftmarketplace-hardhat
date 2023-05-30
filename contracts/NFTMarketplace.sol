@@ -17,6 +17,8 @@ error NFTMarketplace__PriceIsBelowPrice(
 error NFTMarketplace__ProceedsMustBeGreaterThanZero();
 error NFTMarketplace__WithdrawFailed();
 
+import "hardhat/console.sol";
+
 contract NFTMarketplace {
   struct Listing {
     uint256 price;
@@ -148,7 +150,6 @@ contract NFTMarketplace {
   )
     external
     onlyOwner(nftAddress, tokenId, msg.sender)
-    isListed(nftAddress, tokenId)
   {
     delete (s_listings[nftAddress][tokenId]);
 
@@ -193,7 +194,7 @@ contract NFTMarketplace {
     return s_listings[nftAddress][tokenId];
   }
 
-  function getEarnings(address seller) external view returns (uint256) {
+  function getProceeds(address seller) external view returns (uint256) {
     return s_proceeds[seller];
   }
 }

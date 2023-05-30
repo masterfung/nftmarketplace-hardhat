@@ -12,7 +12,7 @@ const deployBasicNFT: DeployFunction = async function (
     const { deploy, log } = deployments
     const { deployer } = await getNamedAccounts()
 
-    const basicNft = await deploy("BasicNft", {
+    const basicNft = await deploy("BasicNFT", {
         from: deployer,
         args: [],
         log: true,
